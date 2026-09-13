@@ -70,7 +70,7 @@ Kubernetes manifests are in [`infra/k8s/deployment.yaml`](infra/k8s/deployment.y
 
 ```text
 .
-├── .github/workflows/ci.yml   # test, build, GitHub Pages delivery
+├── .github/workflows/         # automatic verification, manual Pages delivery
 ├── infra/
 │   ├── k8s/deployment.yaml     # workload, probes, limits, service
 │   └── nginx.conf              # SPA routing, cache, security headers
