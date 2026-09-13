@@ -315,11 +315,14 @@ curl http://localhost:8080/healthz
 
 ## Author
 
-**김태영 / Taeyoung Kim** — Software Engineer, Cloud & Infrastructure
+**김태영**
 
-- [GitHub](https://github.com/taeyoungk-dev)
-- [LinkedIn](https://www.linkedin.com/in/katiekim412)
-- [Email](mailto:katiekim412@gmail.com)
+Backend · Cloud · Data Engineer in progress
+
+- GitHub: [@taeyoungk-dev](https://github.com/taeyoungk-dev)
+- LinkedIn: [linkedin.com/in/taeyoung-kim-9b743140b](https://www.linkedin.com/in/taeyoung-kim-9b743140b/)
+- Tech Blog: [taeyoungkim.dev/ko](https://www.taeyoungkim.dev/ko)
+- Email: [taeyoungkdev@gmail.com](mailto:taeyoungkdev@gmail.com)
 
 ---
 
