@@ -346,9 +346,11 @@ function AboutSection() {
         <h2>From <em>software</em><br />to systems at <em>scale.</em></h2>
         <p className="about-lead">김태영은 Java Backend를 출발점으로 Cloud·AI·Data, 그리고 Cybersecurity로 전문성을 확장하고 있습니다. 글로벌 환경에서 소통하고 신뢰할 수 있는 시스템을 만드는 것이 목표입니다.</p>
         <div className="about-links">
-          <a href="mailto:katiekim412@gmail.com">EMAIL <Arrow /></a>
-          <a href="https://www.linkedin.com/in/katiekim412" target="_blank" rel="noreferrer">LINKEDIN <Arrow /></a>
+          <a href="mailto:taeyoungkdev@gmail.com">EMAIL <Arrow /></a>
+          <a href="tel:+821052303787">PHONE <Arrow /></a>
+          <a href="https://www.linkedin.com/in/taeyoung-kim-9b743140b/" target="_blank" rel="noreferrer">LINKEDIN <Arrow /></a>
           <a href="https://github.com/taeyoungk-dev" target="_blank" rel="noreferrer">GITHUB <Arrow /></a>
+          <a href="https://www.taeyoungkim.dev/ko" target="_blank" rel="noreferrer">TECH BLOG <Arrow /></a>
         </div>
       </div>
       <div className="roadmap">
@@ -367,7 +369,16 @@ function AboutSection() {
 function Footer() {
   return (
     <footer>
-      <div><strong>LET'S BUILD<br />WHAT SCALES.</strong><a href="mailto:katiekim412@gmail.com">START A CONVERSATION <Arrow /></a></div>
+      <div>
+        <strong>LET'S BUILD<br />WHAT SCALES.</strong>
+        <div className="footer-contact" aria-label="연락처">
+          <a href="mailto:taeyoungkdev@gmail.com">EMAIL <Arrow /></a>
+          <a href="tel:+821052303787">PHONE <Arrow /></a>
+          <a href="https://www.linkedin.com/in/taeyoung-kim-9b743140b/" target="_blank" rel="noreferrer">LINKEDIN <Arrow /></a>
+          <a href="https://github.com/taeyoungk-dev" target="_blank" rel="noreferrer">GITHUB <Arrow /></a>
+          <a href="https://www.taeyoungkim.dev/ko" target="_blank" rel="noreferrer">TECH BLOG <Arrow /></a>
+        </div>
+      </div>
       <div className="footer-bottom"><span>© {new Date().getFullYear()} TAEYOUNG KIM</span><span>DESIGNED & ENGINEERED IN SEOUL</span><button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>BACK TO TOP ↑</button></div>
     </footer>
   )

@@ -31,4 +31,16 @@ describe('Trending Pages portfolio', () => {
     expect(within(dialog).getByText('Goseong')).toBeInTheDocument()
     expect(within(dialog).queryByText('Jeju')).not.toBeInTheDocument()
   })
+
+  it('uses the latest resume contact links', () => {
+    render(<App />)
+
+    expect(screen.getAllByRole('link', { name: 'EMAIL' })[0]).toHaveAttribute('href', 'mailto:taeyoungkdev@gmail.com')
+    expect(screen.getAllByRole('link', { name: 'PHONE' })[0]).toHaveAttribute('href', 'tel:+821052303787')
+    expect(screen.getAllByRole('link', { name: 'LINKEDIN' })[0]).toHaveAttribute(
+      'href',
+      'https://www.linkedin.com/in/taeyoung-kim-9b743140b/',
+    )
+    expect(screen.getAllByRole('link', { name: 'TECH BLOG' })[0]).toHaveAttribute('href', 'https://www.taeyoungkim.dev/ko')
+  })
 })

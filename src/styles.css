@@ -1010,6 +1010,17 @@ footer a {
   font-size: 9px;
 }
 
+.footer-contact {
+  width: min(440px, 35vw);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 24px;
+}
+
+.footer-contact a:last-child {
+  grid-column: 1 / -1;
+}
+
 .footer-bottom {
   margin-top: 100px;
   padding-top: 20px;
@@ -1195,6 +1206,8 @@ footer a {
   footer > div:first-child { align-items: flex-start; flex-direction: column; }
   footer strong { font-size: 19vw; }
   footer a { margin-top: 55px; }
+  .footer-contact { width: 100%; margin-top: 45px; grid-template-columns: 1fr; }
+  .footer-contact a, .footer-contact a:last-child { grid-column: auto; margin-top: 0; }
   .footer-bottom { margin-top: 70px; grid-template-columns: 1fr auto; gap: 10px; }
   .footer-bottom span:nth-child(2) { display: none; }
   .modal-backdrop { padding: 0; }
