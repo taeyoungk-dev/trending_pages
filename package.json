@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 4174 --strictPort",
+    "dev": "vite --port 8082 --strictPort",
     "build": "tsc -b && vite build",
-    "preview": "vite preview --port 4174 --strictPort",
+    "preview": "vite preview --port 8082 --strictPort",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run test && npm run build"

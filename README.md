@@ -7,7 +7,7 @@
 ## 현재 상태
 
 - 로컬 애플리케이션: 실행 가능
-- 로컬 개발 주소: [http://127.0.0.1:4174](http://127.0.0.1:4174)
+- 로컬 개발 주소: [http://127.0.0.1:8082](http://127.0.0.1:8082)
 - 원격 GitHub 저장소: 없음 — 기존 `trending_pages` 저장소 삭제
 - 공개 배포 주소: 없음
 - CI/CD 파일: 새 저장소에서 재사용할 수 있는 템플릿으로만 포함
@@ -219,10 +219,10 @@ npm run dev
 브라우저에서 다음 주소를 엽니다.
 
 ```text
-http://127.0.0.1:4174
+http://127.0.0.1:8082
 ```
 
-`npm run dev`에는 `--port 4174 --strictPort`가 포함되어 있습니다. 따라서 항상 `4174`를 사용하며, 이 포트가 이미 사용 중이면 임의의 다른 포트로 변경하지 않고 오류를 표시합니다.
+`npm run dev`에는 `--port 8082 --strictPort`가 포함되어 있습니다. 따라서 항상 `8082`를 사용하며, 이 포트가 이미 사용 중이면 임의의 다른 포트로 변경하지 않고 오류를 표시합니다.
 
 개발 서버를 종료하려면 실행 중인 터미널에서 `Control + C`를 누릅니다.
 
@@ -238,7 +238,7 @@ npm run preview
 프로덕션 미리보기도 다음 주소를 사용합니다.
 
 ```text
-http://127.0.0.1:4174
+http://127.0.0.1:8082
 ```
 
 ### Docker로 실행
@@ -247,19 +247,19 @@ Docker Desktop 또는 Docker Engine을 실행한 후:
 
 ```bash
 docker build -t trending-pages .
-docker run --rm -p 8080:8080 trending-pages
+docker run --rm -p 8082:8082 trending-pages
 ```
 
 브라우저 주소:
 
 ```text
-http://127.0.0.1:8080
+http://127.0.0.1:8082
 ```
 
 상태 확인:
 
 ```bash
-curl http://127.0.0.1:8080/healthz
+curl http://127.0.0.1:8082/healthz
 ```
 
 `ok`가 반환되면 Nginx 컨테이너가 요청을 받을 준비가 된 상태입니다.
@@ -268,11 +268,11 @@ curl http://127.0.0.1:8080/healthz
 
 | 명령어 | 역할 |
 | --- | --- |
-| `npm run dev` | `4174` 포트에서 개발 서버 실행 |
+| `npm run dev` | `8082` 포트에서 개발 서버 실행 |
 | `npm run test` | 테스트 전체를 한 번 실행 |
 | `npm run test:watch` | 변경을 감지하며 테스트 반복 실행 |
 | `npm run build` | TypeScript 검사 후 프로덕션 bundle 생성 |
-| `npm run preview` | `4174` 포트에서 프로덕션 bundle 미리보기 |
+| `npm run preview` | `8082` 포트에서 프로덕션 bundle 미리보기 |
 | `npm run check` | 테스트와 프로덕션 빌드를 순서대로 실행 |
 
 ## 디렉터리 구조
