@@ -323,7 +323,3 @@ Backend · Cloud · Data Engineer in progress
 - LinkedIn: [linkedin.com/in/taeyoung-kim-9b743140b](https://www.linkedin.com/in/taeyoung-kim-9b743140b/)
 - Tech Blog: [taeyoungkim.dev/ko](https://www.taeyoungkim.dev/ko)
 - Email: [taeyoungkdev@gmail.com](mailto:taeyoungkdev@gmail.com)
-
----
-
-This is an independent educational portfolio. Brand-inspired origins are credited above; the unified visual system and interactions are original work for this repository.
