@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { projects, stack, type Project, type ProjectId } from './data'
+import { nudgeOffset, pointerToOffset, scrollToSection, useReducedMotion, type Offset } from './lib/motion'
+import { MODEL_ANNUAL_RATE, SAVINGS_GOAL, formatManWon, formatWon, formatWonText, goalProgress, projectSavings } from './lib/savings'
 
 type IconProps = { size?: number; className?: string }
 
@@ -27,28 +29,66 @@ const Heart = ({ filled }: { filled: boolean }) => (
   </svg>
 )
 
-function Header({ progress }: { progress: number }) {
+/** Owns scroll state so scrolling re-renders only this bar, not the whole page. */
+function ScrollProgress() {
+  const [progress, setProgress] = useState(0)
+
+  useEffect(() => {
+    let frame = 0
+    const update = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const available = document.documentElement.scrollHeight - window.innerHeight
+        setProgress(available > 0 ? Math.min(1, Math.max(0, window.scrollY / available)) : 0)
+      })
+    }
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
+    }
+  }, [])
+
+  return <div className="scroll-progress" style={{ transform: `scaleX(${progress})` }} aria-hidden="true" />
+}
+
+function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setMenuOpen(false)
+      menuButtonRef.current?.focus()
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [menuOpen])
 
   const navigate = (target: string) => {
-    document.querySelector(target)?.scrollIntoView({ behavior: 'smooth' })
     setMenuOpen(false)
+    scrollToSection(target)
   }
 
   return (
     <header className="site-header">
-      <div className="scroll-progress" style={{ transform: `scaleX(${progress})` }} />
+      <ScrollProgress />
       <button className="wordmark" onClick={() => navigate('#top')} aria-label="페이지 처음으로">
         TYK<span>/LAB</span>
       </button>
-      <nav className={menuOpen ? 'nav-links is-open' : 'nav-links'} aria-label="주요 메뉴">
+      <nav id="primary-navigation" className={menuOpen ? 'nav-links is-open' : 'nav-links'} aria-label="주요 메뉴">
         <button onClick={() => navigate('#work')}>WORK <sup>03</sup></button>
         <button onClick={() => navigate('#system')}>SYSTEM</button>
         <button onClick={() => navigate('#about')}>ABOUT</button>
       </nav>
       <div className="header-meta">
         <span className="availability"><i /> OPEN TO WORK</span>
-        <button className="menu-button" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen} aria-label="메뉴 열기">
+        <button ref={menuButtonRef} className="menu-button" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen} aria-controls="primary-navigation">
           {menuOpen ? '닫기' : '메뉴'}
         </button>
       </div>
@@ -58,7 +98,7 @@ function Header({ progress }: { progress: number }) {
 
 function Hero() {
   return (
-    <section className="hero" id="top">
+    <section className="hero" id="top" tabIndex={-1} aria-label="소개">
       <div className="hero-kicker reveal-up">
         <Spark size={16} />
         <span>SEOUL → GLOBAL</span>
@@ -86,7 +126,7 @@ function Hero() {
           <br />
           <strong>시스템으로 확장하는 엔지니어.</strong>
         </p>
-        <button className="round-link" onClick={() => document.querySelector('#work')?.scrollIntoView({ behavior: 'smooth' })} aria-label="프로젝트 보기">
+        <button className="round-link" onClick={() => scrollToSection('#work')} aria-label="프로젝트 보기">
           <span>EXPLORE<br />THE WORK</span>
           <Arrow />
         </button>
@@ -99,14 +139,20 @@ function Hero() {
   )
 }
 
-function SignalVisual({ compact = false }: { compact?: boolean }) {
+type SignalPlan = { monthly: number; projected: number; goalRate: number }
+
+function SignalVisual({ compact = false, plan }: { compact?: boolean; plan?: SignalPlan }) {
+  const stats = plan
+    ? [['MONTHLY', formatManWon(plan.monthly)], ['GOAL', `${plan.goalRate}%`], ['TERM', '12M']]
+    : [['SAVED', '68%'], ['GOAL', '73%'], ['STREAK', '18D']]
+
   return (
     <div className={compact ? 'signal-visual is-compact' : 'signal-visual'}>
       <div className="signal-topline"><span>SIGNAL</span><span>SECURE / 256</span></div>
       <div className="signal-balance">
-        <span>THIS MONTH</span>
-        <strong>₩4,280,500</strong>
-        <small>+ 12.8% <i>↗</i></small>
+        <span>{plan ? `PROJECTED / GOAL ${formatWon(SAVINGS_GOAL)}` : 'THIS MONTH'}</span>
+        <strong>{plan ? formatWon(plan.projected) : '₩4,280,500'}</strong>
+        <small>{plan ? `+ ${(MODEL_ANNUAL_RATE * 100).toFixed(1)}% APR` : '+ 12.8%'} <i>↗</i></small>
       </div>
       <div className="signal-chart" aria-hidden="true">
         <svg viewBox="0 0 500 180" preserveAspectRatio="none">
@@ -122,9 +168,7 @@ function SignalVisual({ compact = false }: { compact?: boolean }) {
         <i className="chart-point" />
       </div>
       <div className="signal-stats">
-        <span><small>SAVED</small><strong>68%</strong></span>
-        <span><small>GOAL</small><strong>73%</strong></span>
-        <span><small>STREAK</small><strong>18D</strong></span>
+        {stats.map(([label, value]) => <span key={label}><small>{label}</small><strong>{value}</strong></span>)}
       </div>
     </div>
   )
@@ -174,7 +218,7 @@ function ProjectVisual({ id, compact = false }: { id: ProjectId; compact?: boole
 
 function ProjectSection({ project, onOpen }: { project: Project; onOpen: (id: ProjectId) => void }) {
   return (
-    <article className={`project project-${project.id}`} style={{ '--accent': project.accent, '--surface': project.surface } as React.CSSProperties}>
+    <article className={`project project-${project.id}`} style={{ '--accent': project.accent, '--surface': project.surface } as CSSProperties}>
       <div className="project-copy">
         <div className="project-heading-row">
           <span className="project-number">({project.number})</span>
@@ -202,7 +246,8 @@ function ProjectSection({ project, onOpen }: { project: Project; onOpen: (id: Pr
 
 function SignalExperience() {
   const [monthly, setMonthly] = useState(650000)
-  const projected = monthly * 12 * 1.042
+  const projected = projectSavings(monthly)
+  const plan = { monthly, projected, goalRate: goalProgress(projected) }
 
   return (
     <div className="experience signal-experience">
@@ -210,19 +255,21 @@ function SignalExperience() {
         <span className="experience-kicker">INTERACTIVE MODULE / 01</span>
         <h4>내일의 숫자를<br />오늘 조정하세요.</h4>
         <p>월 저축액을 조정하면 1년 후 예상 자산이 즉시 반영됩니다.</p>
-        <label htmlFor="monthly-saving">월 저축액 <strong>₩{monthly.toLocaleString('ko-KR')}</strong></label>
-        <input id="monthly-saving" type="range" min="100000" max="1500000" step="50000" value={monthly} onChange={(event) => setMonthly(Number(event.target.value))} />
-        <div className="projection"><small>12 MONTH PROJECTION</small><strong>₩{Math.round(projected).toLocaleString('ko-KR')}</strong><span>4.2% model rate</span></div>
+        <label htmlFor="monthly-saving">월 저축액 <strong>{formatWon(monthly)}</strong></label>
+        <input id="monthly-saving" type="range" min="100000" max="1500000" step="50000" value={monthly} aria-valuetext={formatWonText(monthly)} onChange={(event) => setMonthly(Number(event.target.value))} />
+        <div className="projection" aria-live="polite"><small>12 MONTH PROJECTION</small><strong>{formatWon(projected)}</strong><span>{(MODEL_ANNUAL_RATE * 100).toFixed(1)}% model rate · 월복리</span></div>
       </div>
-      <SignalVisual />
+      <SignalVisual plan={plan} />
     </div>
   )
 }
 
+const stayCategories = ['ALL', 'COAST', 'FOREST'] as const
+type StayCategory = (typeof stayCategories)[number]
+
 function StayExperience() {
-  const [category, setCategory] = useState('ALL')
+  const [category, setCategory] = useState<StayCategory>('ALL')
   const [favorites, setFavorites] = useState<number[]>([2])
-  const categories = ['ALL', 'COAST', 'FOREST']
   const visible = category === 'ALL' ? stayCards : stayCards.filter((card) => card.type === category)
 
   const toggleFavorite = (id: number) => {
@@ -236,15 +283,18 @@ function StayExperience() {
         <p>카테고리를 가볍게 바꾸고, 마음에 드는 숙소를 저장해보세요.</p>
       </div>
       <div className="experience-filters" role="group" aria-label="숙소 카테고리">
-        {categories.map((item) => <button key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}
-        <span>{visible.length} STAYS</span>
+        {stayCategories.map((item) => <button key={item} type="button" className={category === item ? 'active' : ''} aria-pressed={category === item} onClick={() => setCategory(item)}>{item}</button>)}
+        <span aria-live="polite">{visible.length} STAYS</span>
       </div>
+      {visible.length === 0 && (
+        <p className="experience-empty">이 카테고리에 맞는 숙소가 아직 없습니다. <button type="button" onClick={() => setCategory('ALL')}>전체 보기</button></p>
+      )}
       <div className="experience-stay-grid">
         {visible.map((card) => (
           <article key={card.id} className="experience-stay-card">
             <div className={`stay-image ${card.color}`}>
               <span>0{card.id}</span><i />
-              <button className={favorites.includes(card.id) ? 'favorite is-favorite' : 'favorite'} onClick={() => toggleFavorite(card.id)} aria-label={`${card.city} ${favorites.includes(card.id) ? '즐겨찾기 해제' : '즐겨찾기'}`}><Heart filled={favorites.includes(card.id)} /></button>
+              <button type="button" className={favorites.includes(card.id) ? 'favorite is-favorite' : 'favorite'} onClick={() => toggleFavorite(card.id)} aria-pressed={favorites.includes(card.id)} aria-label={`${card.city} ${favorites.includes(card.id) ? '즐겨찾기 해제' : '즐겨찾기'}`}><Heart filled={favorites.includes(card.id)} /></button>
             </div>
             <div className="stay-card-meta"><strong>{card.city}</strong><small>{card.type} · ★ {card.rating}</small><span>₩{card.price} / night</span></div>
           </article>
@@ -254,45 +304,109 @@ function StayExperience() {
   )
 }
 
+const CENTER: Offset = { x: 0, y: 0 }
+
 function WildlineExperience() {
-  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const reducedMotion = useReducedMotion()
+  const [offset, setOffset] = useState<Offset>(CENTER)
+  const frame = useRef(0)
+
+  useEffect(() => () => cancelAnimationFrame(frame.current), [])
+
+  const schedule = (next: Offset) => {
+    cancelAnimationFrame(frame.current)
+    frame.current = requestAnimationFrame(() => setOffset(next))
+  }
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (reducedMotion) return
+    const next = nudgeOffset(offset, event.key)
+    if (!next) return
+    event.preventDefault()
+    setOffset(next)
+  }
 
   return (
     <div
       className="experience wild-experience"
+      tabIndex={0}
+      role="group"
+      aria-label="Wildline 패럴랙스 풍경. 방향키로 레이어를 움직이고 Home 키로 되돌립니다."
       onPointerMove={(event) => {
+        if (reducedMotion || event.pointerType === 'touch') return
         const rect = event.currentTarget.getBoundingClientRect()
-        setOffset({ x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2 })
+        schedule(pointerToOffset(event.clientX, event.clientY, rect))
       }}
-      onPointerLeave={() => setOffset({ x: 0, y: 0 })}
+      onPointerLeave={() => schedule(CENTER)}
+      onKeyDown={onKeyDown}
     >
-      <WildlineVisual offset={offset} />
-      <div className="wild-experience-note"><span>MOVE YOUR POINTER</span><p>레이어마다 제한된 비율로 움직여 공간의 깊이를 만듭니다.</p></div>
+      <WildlineVisual offset={reducedMotion ? CENTER : offset} />
+      <div className="wild-experience-note">
+        <span>{reducedMotion ? 'MOTION REDUCED' : 'MOVE YOUR POINTER · ARROW KEYS'}</span>
+        <p>{reducedMotion ? '모션 최소화 설정을 존중해 레이어를 고정했습니다.' : '레이어마다 제한된 비율로 움직여 공간의 깊이를 만듭니다.'}</p>
+      </div>
     </div>
   )
 }
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
+
 function ExperienceModal({ project, onClose }: { project: Project; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
 
   useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
+  // Runs once per open: parent re-renders must not steal focus or reset scroll lock.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     closeRef.current?.focus()
-    const closeOnEscape = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
-    window.addEventListener('keydown', closeOnEscape)
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onCloseRef.current()
+        return
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return
+      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const current = document.activeElement
+      if (event.shiftKey && (current === first || !dialogRef.current.contains(current))) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && (current === last || !dialogRef.current.contains(current))) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
     return () => {
       document.body.style.overflow = previousOverflow
-      window.removeEventListener('keydown', closeOnEscape)
+      window.removeEventListener('keydown', onKeyDown)
+      opener?.focus({ preventScroll: true })
     }
-  }, [onClose])
+  }, [])
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="experience-title">
+    <div
+      ref={dialogRef}
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="experience-title"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+    >
       <div className={`modal-shell modal-${project.id}`}>
         <div className="modal-bar">
           <div><span>TYK/LAB</span><span id="experience-title">{project.number} — {project.title}</span></div>
-          <button ref={closeRef} onClick={onClose}><span>CLOSE</span><Close /></button>
+          <button ref={closeRef} type="button" onClick={onClose} aria-label="CLOSE — 인터랙션 닫기"><span>CLOSE</span><Close /></button>
         </div>
         {project.id === 'signal' && <SignalExperience />}
         {project.id === 'stay' && <StayExperience />}
@@ -304,8 +418,8 @@ function ExperienceModal({ project, onClose }: { project: Project; onClose: () =
 
 function SystemSection() {
   return (
-    <section className="system-section" id="system">
-      <div className="section-label"><span>02 / SYSTEM</span><p>THE SYSTEM BENEATH<br />THE INTERFACE</p></div>
+    <section className="system-section" id="system" tabIndex={-1} aria-labelledby="system-label">
+      <div className="section-label"><span id="system-label">02 / SYSTEM</span><p>THE SYSTEM BENEATH<br />THE INTERFACE</p></div>
       <div className="system-heading">
         <span className="outline-text">DESIGN.</span>
         <span>BUILD.</span>
@@ -339,8 +453,8 @@ function SystemSection() {
 
 function AboutSection() {
   return (
-    <section className="about-section" id="about">
-      <div className="section-label light-label"><span>03 / ABOUT</span><p>A LONG-RANGE<br />ENGINEERING PATH</p></div>
+    <section className="about-section" id="about" tabIndex={-1} aria-labelledby="about-label">
+      <div className="section-label light-label"><span id="about-label">03 / ABOUT</span><p>A LONG-RANGE<br />ENGINEERING PATH</p></div>
       <div className="about-main">
         <p className="about-kicker">CURRENT VECTOR / SEOUL, KR</p>
         <h2>From <em>software</em><br />to systems at <em>scale.</em></h2>
@@ -371,60 +485,41 @@ function Footer() {
     <footer>
       <div>
         <strong>LET'S BUILD<br />WHAT SCALES.</strong>
-        <div className="footer-contact" aria-label="연락처">
+        <nav className="footer-contact" aria-label="푸터 연락처">
           <a href="mailto:taeyoungkdev@gmail.com">EMAIL <Arrow /></a>
           <a href="tel:+821052303787">PHONE <Arrow /></a>
           <a href="https://www.linkedin.com/in/taeyoung-kim-9b743140b/" target="_blank" rel="noreferrer">LINKEDIN <Arrow /></a>
           <a href="https://github.com/taeyoungk-dev" target="_blank" rel="noreferrer">GITHUB <Arrow /></a>
           <a href="https://www.taeyoungkim.dev/ko" target="_blank" rel="noreferrer">TECH BLOG <Arrow /></a>
-        </div>
+        </nav>
       </div>
-      <div className="footer-bottom"><span>© {new Date().getFullYear()} TAEYOUNG KIM</span><span>DESIGNED & ENGINEERED IN SEOUL</span><button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>BACK TO TOP ↑</button></div>
+      <div className="footer-bottom"><span>© {new Date().getFullYear()} TAEYOUNG KIM</span><span>DESIGNED & ENGINEERED IN SEOUL</span><button type="button" onClick={() => scrollToSection('#top')}>BACK TO TOP ↑</button></div>
     </footer>
   )
 }
 
 export default function App() {
-  const [progress, setProgress] = useState(0)
   const [activeProject, setActiveProject] = useState<ProjectId | null>(null)
-
-  useEffect(() => {
-    let frame = 0
-    const update = () => {
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => {
-        const available = document.documentElement.scrollHeight - window.innerHeight
-        setProgress(available > 0 ? window.scrollY / available : 0)
-      })
-    }
-    update()
-    window.addEventListener('scroll', update, { passive: true })
-    window.addEventListener('resize', update)
-    return () => {
-      cancelAnimationFrame(frame)
-      window.removeEventListener('scroll', update)
-      window.removeEventListener('resize', update)
-    }
-  }, [])
+  const closeProject = useCallback(() => setActiveProject(null), [])
 
   const selectedProject = projects.find((project) => project.id === activeProject)
 
   return (
     <>
       <a className="skip-link" href="#main-content">본문으로 바로가기</a>
-      <Header progress={progress} />
-      <main id="main-content">
+      <Header />
+      <main id="main-content" tabIndex={-1}>
         <Hero />
-        <section className="work-section" id="work">
+        <section className="work-section" id="work" tabIndex={-1} aria-labelledby="work-title">
           <div className="section-label"><span>01 / SELECTED WORK</span><p>THREE STUDIES,<br />REBUILT AS ONE SYSTEM</p></div>
-          <div className="work-intro"><h2>RE/BUILT</h2><p>세 개의 클론 코딩을<br /><strong>하나의 엔지니어링 서사로.</strong></p></div>
+          <div className="work-intro"><h2 id="work-title">RE/BUILT</h2><p>세 개의 클론 코딩을<br /><strong>하나의 엔지니어링 서사로.</strong></p></div>
           <div className="projects-list">{projects.map((project) => <ProjectSection key={project.id} project={project} onOpen={setActiveProject} />)}</div>
         </section>
         <SystemSection />
         <AboutSection />
       </main>
       <Footer />
-      {selectedProject && <ExperienceModal project={selectedProject} onClose={() => setActiveProject(null)} />}
+      {selectedProject && <ExperienceModal key={selectedProject.id} project={selectedProject} onClose={closeProject} />}
     </>
   )
 }

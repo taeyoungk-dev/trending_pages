@@ -8,11 +8,9 @@
 
 - 로컬 애플리케이션: 실행 가능
 - 로컬 개발 주소: [http://127.0.0.1:8082](http://127.0.0.1:8082)
-- 원격 GitHub 저장소: 없음 — 기존 `trending_pages` 저장소 삭제
-- 공개 배포 주소: 없음
-- CI/CD 파일: 새 저장소에서 재사용할 수 있는 템플릿으로만 포함
-
-현재 README는 삭제된 저장소나 존재하지 않는 공개 URL을 전제로 하지 않습니다.
+- GitHub 저장소: [github.com/taeyoungk-dev/trending_pages](https://github.com/taeyoungk-dev/trending_pages) (public)
+- 자동 검증: `main` push와 PR마다 `.github/workflows/ci.yml`이 `npm ci` → `npm run check` 실행
+- 공개 배포: GitHub Pages 수동 배포 workflow(`deploy-pages.yml`) 제공. push로는 배포되지 않으며, 실행 전까지 공개 URL은 없습니다. 자세한 내용은 [배포](#배포) 참고
 
 ## 프로젝트 개요
 
@@ -49,11 +47,11 @@ BUILD → VERIFY → SHIP
 
 금융 데이터를 시각적으로 탐색하는 인터랙티브 모듈입니다.
 
-- 월 저축액 range input 제공
-- 입력값에 따른 12개월 예상 자산 즉시 계산
-- 잔액, 증감률, 목표 달성률을 하나의 정보 계층으로 표현
-- label과 input을 연결해 키보드 및 보조기기 접근성 확보
-- 입력 상태와 표시 상태를 React의 단방향 데이터 흐름으로 관리
+- 월 저축액 range input 제공 (10만~150만 원, 5만 원 단위)
+- 입력값에 따른 12개월 예상 자산 즉시 계산 — 연 4.2% 월복리, 매월 말 적립(정기적금 annuity) 공식
+- 오른쪽 시각화의 예상 잔액·목표(1,000만 원) 달성률·월 적립액이 슬라이더와 함께 갱신
+- label과 input을 연결하고 `aria-valuetext`("650,000원")로 금액을 읽어 주어 키보드·보조기기 접근성 확보
+- 계산 로직은 `src/lib/savings.ts`의 순수 함수로 분리하고 단위 테스트로 검증
 
 ```text
 기존: scroll event + DOM style 변경
@@ -64,9 +62,9 @@ BUILD → VERIFY → SHIP
 
 숙소 데이터를 탐색하고 저장하는 반응형 discovery grid입니다.
 
-- `ALL`, `COAST`, `FOREST` 카테고리 필터
-- 결과 개수의 즉시 갱신
-- 숙소별 즐겨찾기 추가 및 해제
+- `ALL`, `COAST`, `FOREST` 카테고리 필터 (`aria-pressed`로 선택 상태 노출)
+- 결과 개수의 즉시 갱신 (`aria-live`로 보조기기에 안내), 결과가 없을 때 빈 상태와 "전체 보기" 복구 버튼
+- 숙소별 즐겨찾기 추가 및 해제 (`aria-pressed` + 상태별 레이블)
 - 배열 데이터와 카드 UI를 분리한 재사용 가능한 구조
 - 데스크톱 3열, 모바일 1열 반응형 레이아웃
 
@@ -79,11 +77,12 @@ BUILD → VERIFY → SHIP
 
 Firewatch 스타일의 깊이감을 CSS 레이어와 포인터 입력으로 재해석한 경험입니다.
 
-- 포인터의 중심 대비 거리를 레이어별 이동값으로 변환
-- 이동량을 제한해 과도한 모션 방지
+- 포인터의 중심 대비 거리를 ±120px 범위로 정규화한 뒤 레이어별 비율로 이동 (가장 가까운 레이어도 최대 약 22px)
+- 포인터 이벤트는 `requestAnimationFrame`으로 묶어 프레임당 한 번만 렌더링
+- 키보드 방향키로 레이어 이동, `Home`으로 중립 복귀
 - pointer leave 시 중립 상태로 복귀
 - CSS `clip-path`와 색상 면으로 외부 이미지 없는 풍경 구성
-- `prefers-reduced-motion` 환경에서 애니메이션과 전환 최소화
+- `prefers-reduced-motion` 환경에서는 레이어를 고정하고 안내 문구 표시
 
 ```text
 기존: scroll마다 무제한 transform 갱신
@@ -116,12 +115,13 @@ Firewatch 스타일의 깊이감을 CSS 레이어와 포인터 입력으로 재�
 - Multi-stage Docker build
 - Unprivileged Nginx runtime
 - SPA fallback routing
-- Immutable static asset cache headers
+- Immutable cache for hashed `/assets/`, `no-cache` for HTML so new deploys are picked up immediately
+- Security headers (CSP, nosniff, frame, referrer, permissions) on every location, gzip
 - `/healthz` health endpoint
 - Kubernetes Deployment and Service
 - Readiness/liveness probes
 - Resource requests and limits
-- Non-root security context and Linux capability drop
+- Non-root security context, read-only root filesystem (`/tmp` emptyDir), Linux capability drop
 
 ## 구현하지 않은 기술
 
@@ -157,23 +157,33 @@ flowchart LR
 
 ## 접근성
 
-- 본문으로 바로 이동하는 skip link
-- 의미에 맞는 `button`, `a`, `section`, `article` 사용
+- 본문으로 바로 이동하는 skip link (이동 후 본문으로 포커스 이동)
+- 메뉴로 섹션 이동 시 해당 섹션으로 포커스 이동, 고정 헤더에 가리지 않도록 `scroll-margin-top` 적용
+- 모바일 메뉴: `aria-expanded`/`aria-controls`, 보이는 문구와 같은 접근 이름, `Escape`로 닫기
+- 모든 조작 요소에 일관된 `:focus-visible` 포커스 링, 최소 글자 크기 9px
+- 의미에 맞는 `button`, `a`, `nav`, `section`, `article` 사용
 - 아이콘과 시각 요소에 적절한 accessible name 또는 `aria-hidden` 적용
 - `role="dialog"`, `aria-modal`, 제목 연결을 적용한 모달
-- 모달이 열릴 때 닫기 버튼으로 포커스 이동
-- `Escape` 키로 모달 종료
-- 모달이 열린 동안 배경 스크롤 잠금
-- `prefers-reduced-motion` 사용자의 애니메이션 최소화
+- 모달이 열릴 때 닫기 버튼으로 포커스 이동, `Tab`/`Shift+Tab` 포커스가 모달 안에서 순환
+- `Escape`·닫기 버튼·배경 클릭으로 종료, 닫으면 모달을 연 버튼으로 포커스 복귀
+- 모달이 열린 동안 배경 스크롤 잠금 (창 크기 변경 등 재렌더링에도 포커스·잠금 유지)
+- `prefers-reduced-motion` 사용자의 애니메이션·스크롤 이동·패럴랙스 최소화
 
 ## 자동 테스트
 
-`src/App.test.tsx`에서 다음 핵심 흐름을 검증합니다.
+`src/App.test.tsx`(Testing Library + jsdom)에서 다음 사용자 흐름을 검증합니다.
 
 1. Signal Bank, Stay Atlas, Wildline이 모두 렌더링되는지 확인
 2. Signal Bank 인터랙션을 열고 `Escape`로 닫을 수 있는지 확인
-3. Stay Atlas에서 `FOREST` 필터가 결과에 반영되는지 확인
-4. 이력서 기준 이메일, 전화, LinkedIn, 기술 블로그 링크가 유지되는지 확인
+3. 모달을 닫으면 연 버튼으로 포커스가 돌아오고 스크롤 잠금이 해제되는지 확인
+4. 배경을 누르면 닫히고, 모달 내용을 누르면 닫히지 않는지 확인
+5. 슬라이더 변경 시 예상 자산·시각화·목표 달성률·`aria-valuetext`가 함께 갱신되는지 확인
+6. Stay Atlas 필터의 `aria-pressed`, 결과 개수, 즐겨찾기 토글 확인
+7. Wildline 키보드 조작과 이동 범위 제한 확인
+8. 모바일 메뉴의 `aria-expanded`/`aria-controls`와 `Escape` 닫기 확인
+9. 이력서 기준 이메일, 전화, LinkedIn, 기술 블로그 링크가 유지되는지 확인
+
+`src/lib/*.test.ts`는 저축 계산(`savings.ts`)과 패럴랙스 범위·키보드 이동(`motion.ts`)의 경계값과 잘못된 입력(NaN, 음수, 0)을 단위 테스트로 검증합니다.
 
 전체 검증은 다음 명령으로 실행합니다.
 
@@ -271,6 +281,7 @@ curl http://127.0.0.1:8082/healthz
 | `npm run dev` | `8082` 포트에서 개발 서버 실행 |
 | `npm run test` | 테스트 전체를 한 번 실행 |
 | `npm run test:watch` | 변경을 감지하며 테스트 반복 실행 |
+| `npm run typecheck` | TypeScript 타입 검사만 실행 |
 | `npm run build` | TypeScript 검사 후 프로덕션 bundle 생성 |
 | `npm run preview` | `8082` 포트에서 프로덕션 bundle 미리보기 |
 | `npm run check` | 테스트와 프로덕션 빌드를 순서대로 실행 |
@@ -280,8 +291,8 @@ curl http://127.0.0.1:8082/healthz
 ```text
 .
 ├── .github/workflows/
-│   ├── ci.yml                 # 새 저장소에서 사용할 자동 검증 템플릿
-│   └── deploy-pages.yml       # 새 저장소에서 사용할 수동 Pages 배포 템플릿
+│   ├── ci.yml                 # main push·PR 자동 검증 (npm ci → npm run check)
+│   └── deploy-pages.yml       # 수동 실행 GitHub Pages 배포
 ├── infra/
 │   ├── k8s/deployment.yaml    # Deployment, Service, probes, resources
 │   └── nginx.conf             # SPA routing, cache, headers, health check
@@ -289,6 +300,9 @@ curl http://127.0.0.1:8082/healthz
 │   ├── App.tsx                # 페이지 섹션과 세 인터랙션
 │   ├── App.test.tsx           # 핵심 사용자 흐름 테스트
 │   ├── data.ts                # 타입이 적용된 프로젝트 데이터
+│   ├── lib/
+│   │   ├── motion.ts          # reduced-motion, 섹션 이동, 패럴랙스 범위 계산
+│   │   └── savings.ts         # 저축 예상 계산과 금액 포맷
 │   ├── main.tsx               # React 진입점
 │   ├── styles.css             # 디자인 시스템과 반응형 스타일
 │   └── test/setup.ts          # 테스트 환경 설정
@@ -298,16 +312,20 @@ curl http://127.0.0.1:8082/healthz
 └── vite.config.ts
 ```
 
-## 새 GitHub 저장소를 연결할 때
+## 배포
 
-현재는 연결된 원격 저장소가 삭제된 상태입니다. 새로운 저장소를 만든 후에만 다음 과정을 수행합니다.
+| 대상 | 트리거 | 내용 |
+| --- | --- | --- |
+| 자동 검증 (`ci.yml`) | `main` push, `main` 대상 PR, 수동 실행 | `npm ci` → `npm run check` (테스트 → 타입 검사 → 빌드) |
+| GitHub Pages (`deploy-pages.yml`) | **수동 실행만** (`workflow_dispatch`) | 검증 후 `dist`를 Pages에 업로드·배포 |
 
-```bash
-git remote set-url origin https://github.com/USER/NEW_REPOSITORY.git
-git push -u origin main
-```
+GitHub Pages로 공개하려면:
 
-배포 workflow는 실행 시 새 저장소 이름으로 Vite base path를 자동 구성합니다. GitHub Pages를 사용할 경우 새 저장소의 Pages 설정과 공개 범위를 별도로 확인해야 합니다.
+1. 저장소 **Settings → Pages → Build and deployment → Source**를 `GitHub Actions`로 설정합니다.
+2. **Actions → Deploy portfolio → Run workflow**를 실행합니다.
+3. workflow가 `VITE_BASE_PATH=/<저장소 이름>/`을 자동으로 넣어 빌드하므로, 배포 주소는 `https://taeyoungk-dev.github.io/trending_pages/` 형태가 됩니다.
+
+`main`에 push해도 Pages 배포는 일어나지 않고 자동 검증만 실행됩니다. Docker/Kubernetes 정의(`Dockerfile`, `infra/`)는 컨테이너 배포용이며, 이미지 레지스트리 push와 클러스터 배포 파이프라인은 포함되어 있지 않습니다.
 
 ## 기술 선택과 트레이드오프
 

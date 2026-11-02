@@ -46,8 +46,16 @@ spec:
               memory: 128Mi
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+          volumeMounts:
+            # nginx-unprivileged writes its pid and temp files under /tmp.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
